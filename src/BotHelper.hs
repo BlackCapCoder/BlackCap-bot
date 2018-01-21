@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase #-}
 module BotHelper
   where
 
@@ -6,6 +7,11 @@ import Data.Maybe
 import Data.List
 import Vindinium
 import qualified Data.HashSet as H
+
+attackDamage = 20
+tavarnHeal   = 50
+
+------------------
 
 type Index = Int
 
@@ -17,6 +23,10 @@ pos2Ix b (Pos x y) = y * boardSize b + x
 ix2Pos :: Board -> Index -> Pos
 ix2Pos b ix = Pos (mod ix $ boardSize b) (div ix $ boardSize b)
 
+-- | Calculates the taxicab distance between two points
+taxicabDist (Pos x1 y1) (Pos x2 y2) = abs (x2-x1) + abs (y2-y1)
+
+------------------
 
 -- | Determines wether a point is inside the bounds of the board
 inBoard :: Board -> Pos -> Bool
@@ -31,9 +41,6 @@ tileAt b p@(Pos x y) =
         then Just $ boardTiles b !! pos2Ix b p
         else Nothing
 
--- | Calculates the taxicab distance between two points
-taxicabDist (Pos x1 y1) (Pos x2 y2) = abs (x2-x1) + abs (y2-y1)
-
 -- | Returns neighboring tiles around a point
 neighbors :: Board -> Pos -> [(Pos, Tile)]
 neighbors b c
@@ -42,6 +49,49 @@ neighbors b c
   . zipWith (\p m -> (,) p <$> m) ps
   $ map (tileAt b) ps
   where ps = map (c+) $ zipWith Pos <*> reverse $ [0,0,-1,1]
+
+-- | All tiles and their positions
+tiles :: Board -> [(Pos, Tile)]
+tiles b | s <- boardSize b = [ (Pos x y, fromJust p) | y <- [0..s-1], x <- [0..s-1], p <- [tileAt b $ Pos x y], isJust p ]
+
+-- | Search for some specific tiles
+findTiles :: (Tile -> Bool) -> Board -> [(Pos, Tile)]
+findTiles f = filter (\(_, x) -> f x) . tiles
+
+
+isTileHero :: Tile -> Bool
+isTileHero (HeroTile _) = True
+isTileHero           _  = False
+
+isTileMine :: Tile -> Bool
+isTileMine (MineTile _) = True
+isTileMine           _  = False
+
+
+heroById :: Game -> HeroId -> Maybe Hero
+heroById g i = find (\h -> heroId h == i) $ gameHeroes g
+
+-----------------
+
+game :: State -> Game
+game = stateGame
+
+me :: State -> Hero
+me = stateHero
+
+myPos :: State -> Pos
+myPos = heroPos . me
+
+myId :: State -> HeroId
+myId = heroId . me
+
+myHp :: State -> Integer
+myHp = heroLife . me
+
+board :: State -> Board
+board = gameBoard . game
+
+------------------
 
 -- | Finds the shortest path between two points, does not include starting point
 pathTo
@@ -72,3 +122,25 @@ turtlePath (p:ps) = snd $ mapAccumL f p ps
 turtlePath' :: Pos -> [Pos] -> [Dir]
 turtlePath' p ps = turtlePath $ p:ps
 
+-- | Distance to walk from one point to another
+distanceTo :: Board -> (Tile -> Bool) -> Pos -> Pos -> Maybe Int
+distanceTo b f s e = length <$> pathTo b f s e
+
+-- | Gives the path to the closest point by the distance you'd have to walk and not actual distance
+closestPath :: Board -> (Tile -> Bool) -> Pos -> [Pos] -> Maybe [Pos]
+closestPath b f s ps
+  | pths <- catMaybes $ pathTo b f s <$> ps
+  , not $ null pths
+  = Just $ minimumBy (\a b -> length a `compare` length b) pths
+  | otherwise = Nothing
+
+------------------
+
+-- | Determines if hero A can kill hero B given that it's their turn
+-- | returns remaining helth of the hero that lives
+-- | You can kill a hero at full health (100) with as little as 84 yourself
+simFight :: Integer -> Integer -> (Bool, Integer)
+simFight x y
+  | y<=attackDamage = (True, x)
+  | (b, q) <- simFight (max (y-attackDamage-1) 1) x
+  = (not b, q)
