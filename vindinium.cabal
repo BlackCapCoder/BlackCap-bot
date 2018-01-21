@@ -28,6 +28,7 @@ executable vindinium
                   , http-client
                   , optparse-applicative >= 0.11.0
                   , split
+                  , process
   other-modules:    Bot,
                     Vindinium,
                     Vindinium.Api,
