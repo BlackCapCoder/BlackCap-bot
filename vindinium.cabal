@@ -24,6 +24,7 @@ executable vindinium
                   , Vindinium.Types
                   , Bot
                   , BotHelper
+                  , PlaneZipper
 
   build-depends:    base >=4.6
                   , mtl
@@ -41,3 +42,5 @@ executable vindinium
                   , hashable
                   , unordered-containers
                   , containers
+                  , comonad
+                  , ListZipper

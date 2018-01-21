@@ -42,17 +42,13 @@ isPassable = \case FreeTile   -> True
 -- | Moves the player towards a given point
 moveTowards :: Pos -> Strategy Dir
 moveTowards p st = do
-  let pos  = myPos st
-      path = pathTo (board st) (const True) pos p
-
-  (h:_) <- turtlePath' pos <$> path
+  (h:_) <- pathTo' (board st) (const True) (myPos st) p
   return h
 
 goToTile :: (Tile -> Bool) -> Strategy Dir
 goToTile f st = do
   let ms = findTiles f $ board st
-  x <- closestPath (board st) isPassable (myPos st) $ map fst ms
-  (h:_) <- pure $ turtlePath' (myPos st) x
+  (h:_) <- closestPath' (board st) isPassable (myPos st) $ map fst ms
   return h
 
 ---------------------
@@ -64,6 +60,7 @@ idle = const $ return Stay
 -- | Main bot
 bot :: Bot
 bot st = do
+  -- let z = makeZipper st
   liftIO $ print $ myHp st
   runStrategy strat idle st
 

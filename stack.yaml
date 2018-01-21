@@ -67,3 +67,4 @@ packages:
 
 extra-deps:
 - astar-0.3.0.0
+- ListZipper-1.2.0.2
