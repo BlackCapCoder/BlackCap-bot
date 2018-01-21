@@ -37,6 +37,7 @@ isPassable = \case FreeTile   -> True
                    HeroTile _ -> True
                    _          -> False
   -- TODO: Heroes are only passable when they can be killed
+  -- TODO: Tiles are only passable when they don't kill me
 
 -- | Moves the player towards a given point
 moveTowards :: Pos -> Strategy Dir
@@ -44,14 +45,14 @@ moveTowards p st = do
   let pos  = myPos st
       path = pathTo (board st) (const True) pos p
 
-  tu@(h:_) <- turtlePath' pos <$> path
+  (h:_) <- turtlePath' pos <$> path
   return h
 
 goToTile :: (Tile -> Bool) -> Strategy Dir
 goToTile f st = do
   let ms = findTiles f $ board st
   x <- closestPath (board st) isPassable (myPos st) $ map fst ms
-  tu@(h:_) <- pure $ turtlePath' (myPos st) x
+  (h:_) <- pure $ turtlePath' (myPos st) x
   return h
 
 ---------------------
@@ -70,7 +71,7 @@ bot st = do
 strat :: Strategy Dir
 strat = tryAll
   [ attackKillableNeighbor
-  , drinkLowHealth 20
+  , goDrinkLowHealth 20
   , drinkNextToTavern 70
   , stealMine
   ]
@@ -78,7 +79,7 @@ strat = tryAll
 -- | Attack players next to you - given a reason
 attackNeighbor :: (Hero -> Bool) -> Strategy Dir
 attackNeighbor f st = do
-  [HeroTile i] <- pure . filter isTileHero . map snd . neighbors (board st) $ myPos st
+  (HeroTile i:_) <- pure . filter isTileHero . map snd . neighbors (board st) $ myPos st
   h <- heroById (game st) i
   guard $ f h
   moveTowards (heroPos h) st
@@ -102,9 +103,9 @@ goMine f = goToTile (\t -> isTileMine t && f t)
 goHero :: (Tile -> Bool) -> Strategy Dir
 goHero f st = goToTile (\t -> isTileHero t && (\(HeroTile i) -> i /= myId st) t && f t) st
 
--- | Goes to the nearest tavern to get a drink if health is below some limit
-drinkLowHealth :: Integer -> Strategy Dir
-drinkLowHealth lim st = do
+-- | Go to the nearest tavern and get a drink if health is below some limit
+goDrinkLowHealth :: Integer -> Strategy Dir
+goDrinkLowHealth lim st = do
   guard $ myHp st <= lim
   goDrink st
 
