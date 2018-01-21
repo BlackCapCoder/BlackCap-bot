@@ -23,6 +23,8 @@ import Data.Text (Text)
 import Control.Monad.Reader (MonadReader, ReaderT, runReaderT, asks)
 import Control.Monad.IO.Class (MonadIO)
 
+import Data.Hashable (Hashable (..))
+
 newtype Key = Key Text deriving (Show, Eq)
 
 data Settings = Settings {
@@ -89,7 +91,19 @@ data Tile = FreeTile
 data Pos = Pos {
     posX :: Int
   , posY :: Int
-} deriving (Show, Eq)
+} deriving (Show, Eq, Ord)
 
 data Dir = Stay | North | South | East | West
-    deriving (Show, Eq)
+    deriving (Show, Eq, Enum, Ord)
+
+instance Hashable Pos where
+  hashWithSalt = undefined
+  hash (Pos x y) = hash $ (0.5 :: Float) * fromIntegral (x+y) * fromIntegral (x+y+1) + fromIntegral y
+
+instance Num Pos where
+  (Pos x1 y1) + (Pos x2 y2) = Pos (x1+x2) (y1+y2)
+  (Pos x1 y1) * (Pos x2 y2) = Pos (x1*x2) (y1*y2)
+  (Pos x1 y1) - (Pos x2 y2) = Pos (x1-x2) (y1-y2)
+  abs (Pos x1 y1) = Pos (abs x1) (abs y1)
+  signum = undefined
+  fromInteger = undefined
