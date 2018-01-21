@@ -69,8 +69,7 @@ newtype HeroId = HeroId Int
 type Path = [Dir]
 
 data Hero = Hero {
-    heroPath      :: Path
-  , heroId        :: HeroId
+    heroId        :: HeroId
   , heroName      :: Text
   , heroUserId    :: Maybe Text
   , heroElo       :: Maybe Integer

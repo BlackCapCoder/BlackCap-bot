@@ -41,22 +41,6 @@ isPassable = \case FreeTile   -> True
   -- TODO: Heroes are only passable when they can be killed
   -- TODO: Tiles are only passable when they don't kill you
 
--- | Determines if a hero is killable
-isKillable :: Integer -> Integer -> Bool
-isKillable hp = fst . simFight hp
-
--- | Determines if a hero is hear anothers spawn
-isNearSpawn :: Hero -> Hero -> Bool
-isNearSpawn x h = taxicabDist (heroPos x) (heroSpawnPos h) < 2
-
--- | Determines if a hero is next to a tavern
-isNearTavern :: Board -> Pos -> Bool
-isNearTavern b p = any ((==TavernTile).snd) (neighbors b p)
-
--- | Determines if a hero is camping
-isCamping :: Board -> Hero -> Hero -> Bool
-isCamping b x h = isNearSpawn x h || isNearTavern b (heroPos h)
-
 -- | Moves the player towards a given point
 moveTowards :: Pos -> Strategy Dir
 moveTowards p st = do

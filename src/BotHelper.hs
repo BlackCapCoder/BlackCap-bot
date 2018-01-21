@@ -69,7 +69,7 @@ attackRange b c
   where ps = map ((c+).uncurry Pos)
           [                    (0, -2)
           ,          (-1, -1), (0, -1), (1, -1)
-          , (-2, 0), (-1,  0),          (1,  0), (2, 0)
+          , (-2, 0), (-1,  0), {- @ -}  (1,  0), (2, 0)
           ,          (-1, 1),  (0,  1), (1,  1)
           ,                    (0,  2)
           ]
@@ -170,6 +170,22 @@ simFight x y
   | y<=attackDamage = (True, x)
   | (b, q) <- simFight (max (y-attackDamage-1) 1) x
   = (not b, q)
+
+-- | Determines if a hero is killable
+isKillable :: Integer -> Integer -> Bool
+isKillable hp = fst . simFight hp
+
+-- | Determines if a hero is hear anothers spawn
+isNearSpawn :: Hero -> Hero -> Bool
+isNearSpawn x h = taxicabDist (heroPos x) (heroSpawnPos h) < 2
+
+-- | Determines if a hero is next to a tavern
+isNearTavern :: Board -> Pos -> Bool
+isNearTavern b p = any ((==TavernTile).snd) (neighbors b p)
+
+-- | Determines if a hero is camping
+isCamping :: Board -> Hero -> Hero -> Bool
+isCamping b x h = isNearSpawn x h || isNearTavern b (heroPos h)
 
 ------------------
 
