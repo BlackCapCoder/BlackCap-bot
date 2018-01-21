@@ -39,7 +39,7 @@ cmd = subparser
     )
 
 runCmd :: Cmd -> IO ()
-runCmd c  = do
+runCmd c = do
     s <- runVindinium (cmdSettings c) $ do
         case c of
             (Training _ t b) -> playTraining t b bot
