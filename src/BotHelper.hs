@@ -43,7 +43,7 @@ neighbors b c
   $ map (tileAt b) ps
   where ps = map (c+) $ zipWith Pos <*> reverse $ [0,0,-1,1]
 
--- | Finds the shortest path between two points
+-- | Finds the shortest path between two points, does not include starting point
 pathTo
   :: Board       -- | The game board
   -> (Tile -> Bool) -- | A function that returns true for non-solid tiles
@@ -71,3 +71,4 @@ turtlePath (p:ps) = snd $ mapAccumL f p ps
 -- | Converts a starting point and a path into turtle instructions
 turtlePath' :: Pos -> [Pos] -> [Dir]
 turtlePath' p ps = turtlePath $ p:ps
+
