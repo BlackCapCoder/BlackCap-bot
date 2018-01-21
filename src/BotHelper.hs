@@ -45,13 +45,35 @@ tileAt b p@(Pos x y) =
         then Just $ boardTiles b !! pos2Ix b p
         else Nothing
 
--- | Returns neighboring tiles around a point
+-- | Neighboring tiles around a point
 neighbors :: Board -> Pos -> [(Pos, Tile)]
 neighbors b c
   = catMaybes
   . zipWith (\p m -> (,) p <$> m) ps
   $ map (tileAt b) ps
   where ps = map (c+) $ zipWith Pos <*> reverse $ [0,0,-1,1]
+
+
+{- Attack range:
+         #
+        ###
+       ##@##
+        ###
+         #       -}
+-- | Things that can be attacked in the same turn
+attackRange :: Board -> Pos -> [(Pos, Tile)]
+attackRange b c
+  = catMaybes
+  . zipWith (\p m -> (,) p <$> m) ps
+  $ map (tileAt b) ps
+  where ps = map ((c+).uncurry Pos)
+          [                    (0, -2)
+          ,          (-1, -1), (0, -1), (1, -1)
+          , (-2, 0), (-1,  0),          (1,  0), (2, 0)
+          ,          (-1, 1),  (0,  1), (1,  1)
+          ,                    (0,  2)
+          ]
+
 
 -- | All tiles and their positions
 tiles :: Board -> [(Pos, Tile)]
@@ -64,8 +86,8 @@ tiles b
     , isJust p ]
 
 -- | Search for some specific tiles
-findTiles :: (Tile -> Bool) -> Board -> [(Pos, Tile)]
-findTiles f = filter (\(_, x) -> f x) . tiles
+findTiles :: ((Pos, Tile) -> Bool) -> Board -> [(Pos, Tile)]
+findTiles f = filter f . tiles
 
 heroById :: Game -> HeroId -> Maybe Hero
 heroById g i = find (\h -> heroId h == i) $ gameHeroes g
@@ -78,6 +100,8 @@ isTileMine :: Tile -> Bool
 isTileMine (MineTile _) = True
 isTileMine           _  = False
 
+heroTileId (HeroTile i) = i
+
 -----------------
 
 game  = stateGame
@@ -89,17 +113,15 @@ board = gameBoard . game
 
 ------------------
 
-type Path  = [Dir]
-
 -- | Finds the shortest path between two points, does not include starting point
 pathTo
-  :: Board          -- | The game board
-  -> (Tile -> Bool) -- | A function that returns true for non-solid tiles
-  -> Pos           -- | Starting position
-  -> Pos           -- | Target position
-  -> Maybe [Pos]   -- | Path to target
+  :: Board                 -- ^ The game board
+  -> ((Pos, Tile) -> Bool) -- ^ A function that returns true for non-solid tiles
+  -> Pos                   -- ^ Starting position
+  -> Pos                   -- ^ Target position
+  -> Maybe [Pos]           -- ^ Path to target
 pathTo b f from to
-  = aStar (H.fromList . map fst . filter (\(p, t) -> p `elem` [from, to] || f t) . neighbors b)
+  = aStar (H.fromList . map fst . filter (\t@(p,_) -> p `elem` [from, to] || f t) . neighbors b)
           (\_ _ -> 1)
           (taxicabDist to)
           (==to)
@@ -124,11 +146,11 @@ turtlePath' p ps = turtlePath $ p:ps
 pathTo' b f from to = turtlePath' from <$> pathTo b f from to
 
 -- | Distance to walk from one point to another
-distanceTo :: Board -> (Tile -> Bool) -> Pos -> Pos -> Maybe Int
+distanceTo :: Board -> ((Pos, Tile) -> Bool) -> Pos -> Pos -> Maybe Int
 distanceTo b f s e = length <$> pathTo b f s e
 
 -- | Gives the path to the closest point by the distance you'd have to walk and not actual distance
-closestPath :: Board -> (Tile -> Bool) -> Pos -> [Pos] -> Maybe [Pos]
+closestPath :: Board -> ((Pos, Tile) -> Bool) -> Pos -> [Pos] -> Maybe [Pos]
 closestPath b f s ps
   | pths <- catMaybes $ pathTo b f s <$> ps
   , not $ null pths
@@ -141,8 +163,8 @@ closestPath' b f from tos = turtlePath' from <$> closestPath b f from tos
 ------------------
 
 -- | Determines if hero A can kill hero B given that it's A's turn
--- | Returns remaining helth of the hero that lives
--- | You can kill a hero at full health (100) with as little as 84 yourself
+--   Returns remaining helth of the hero that lives
+--   You can kill a hero at full health (100) with as little as 84 yourself
 simFight :: Integer -> Integer -> (Bool, Integer)
 simFight x y
   | y<=attackDamage = (True, x)
@@ -151,15 +173,15 @@ simFight x y
 
 ------------------
 
-type Map = Z Tile
 
 -- | Turn the map into a 2D zipper
+--   This seemed like a good idea before I had to pathfind
 makeMap :: State -> Map
 makeMap st = move z
-  where b  = board st
+  where b  = gameBoard $ stateGame st
         rs = chunksOf (boardSize b) (boardTiles b)
         z  = Z . LZ.fromList $ LZ.fromList <$> rs
-        (Pos x y) = myPos st
+        (Pos x y) = heroPos $ stateHero st
         move = foldl (.) id $ replicate x right ++ replicate y down
 
 -- | Move the zipper given directions
@@ -171,4 +193,3 @@ turtle ds = foldl (.) id
               South -> down
               West  -> left
               Stay  -> id
-

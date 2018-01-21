@@ -56,6 +56,8 @@ neighbours = [left, right, up, down]
 neighbours' :: Z a -> [Z a]
 neighbours' x = ($x) <$> neighbours
 
+empty = LZ.empty
+
 ----------
 
 instance Comonad LZ.Zipper where

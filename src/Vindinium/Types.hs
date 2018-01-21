@@ -15,6 +15,8 @@ module Vindinium.Types
         , Tile (..)
         , Pos (..)
         , Dir (..)
+        , Path
+        , Map
         )
     where
 
@@ -24,6 +26,7 @@ import Control.Monad.Reader (MonadReader, ReaderT, runReaderT, asks)
 import Control.Monad.IO.Class (MonadIO)
 
 import Data.Hashable (Hashable (..))
+import PlaneZipper
 
 newtype Key = Key Text deriving (Show, Eq)
 
@@ -61,10 +64,13 @@ data Game = Game {
 } deriving (Show, Eq)
 
 newtype HeroId = HeroId Int
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
+
+type Path = [Dir]
 
 data Hero = Hero {
-    heroId        :: HeroId
+    heroPath      :: Path
+  , heroId        :: HeroId
   , heroName      :: Text
   , heroUserId    :: Maybe Text
   , heroElo       :: Maybe Integer
@@ -86,7 +92,7 @@ data Tile = FreeTile
           | TavernTile
           | HeroTile HeroId
           | MineTile (Maybe HeroId)
-    deriving (Show, Eq)
+    deriving (Show, Eq, Ord)
 
 data Pos = Pos {
     posX :: Int
@@ -107,3 +113,5 @@ instance Num Pos where
   abs (Pos x1 y1) = Pos (abs x1) (abs y1)
   signum = undefined
   fromInteger = undefined
+
+type Map = Z Tile

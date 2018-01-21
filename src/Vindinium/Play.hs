@@ -8,10 +8,11 @@ module Vindinium.Play
 import Vindinium.Types
 import Vindinium.Api
 import Control.Monad.IO.Class (liftIO)
-import Data.List.Split (chunksOf)
 import qualified Data.Text as T
 import Control.Monad
 import System.Process (spawnCommand)
+import qualified Data.Text as T
+import qualified Data.Text.IO as TIO
 
 playTraining :: Maybe Int -> Maybe Board -> Bot -> Vindinium State
 playTraining mt mb b = do
@@ -27,7 +28,7 @@ playArena b = do
 
 playLoop :: Bot -> State -> Vindinium State
 playLoop bot state = do
-  liftIO . putStrLn . drawBoard . gameBoard $ stateGame state
+  liftIO . TIO.putStrLn . drawBoard . gameBoard $ stateGame state
 
   if (gameFinished . stateGame) state
       then return state
@@ -43,15 +44,11 @@ beforeGame st = do
 ----------------
 
 -- Render the game as ASCII art
-drawBoard :: Board -> String
-drawBoard (Board s ts)
-  = unlines $ chunksOf s $ map f ts
-  where f = \case
-          FreeTile    -> '.'
-          WoodTile    -> '#'
-          TavernTile  -> 't'
-          MineTile _  -> 'm'
-          HeroTile (HeroId i) -> head $ show i
+drawBoard :: Board -> T.Text
+drawBoard (Board s ts) = T.unlines . T.chunksOf (s*2) $ printTiles ts
 
 -- Open the game in a browser on a remote monitor
 showGame url = void $ spawnCommand ("ssh blackcap@158.36.81.46 'DISPLAY=:0 chromium " ++ T.unpack url ++ "'")
+
+----------------
+

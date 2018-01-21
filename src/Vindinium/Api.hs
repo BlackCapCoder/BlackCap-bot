@@ -3,6 +3,7 @@ module Vindinium.Api
         ( startTraining
         , startArena
         , move
+        , printTiles
         )
     where
 
@@ -131,16 +132,17 @@ instance FromJSON GameId where
     parseJSON x = GameId <$> parseJSON x
 
 instance FromJSON Hero where
-    parseJSON (Object o) = Hero <$> o .: "id"
-                                <*> o .: "name"
-                                <*> o .:? "userId"
-                                <*> o .:? "elo"
-                                <*> o .: "pos"
-                                <*> o .: "life"
-                                <*> o .: "gold"
-                                <*> o .: "mineCount"
-                                <*> o .: "spawnPos"
-                                <*> o .: "crashed"
+    parseJSON (Object o) = (Hero mempty)
+                        <$> o .: "id"
+                        <*> o .: "name"
+                        <*> o .:? "userId"
+                        <*> o .:? "elo"
+                        <*> o .: "pos"
+                        <*> o .: "life"
+                        <*> o .: "gold"
+                        <*> o .: "mineCount"
+                        <*> o .: "spawnPos"
+                        <*> o .: "crashed"
     parseJSON _ = mzero
 
 instance FromJSON HeroId where
