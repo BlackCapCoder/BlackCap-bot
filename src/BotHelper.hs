@@ -3,14 +3,17 @@ module BotHelper
 
 import Data.Graph.AStar
 import Data.Maybe
+import Data.List
 import Vindinium
 import qualified Data.HashSet as H
 
 type Index = Int
 
+-- | Convert a point into an index
 pos2Ix :: Board -> Pos -> Index
 pos2Ix b (Pos x y) = y * boardSize b + x
 
+-- | Convert an index into a point
 ix2Pos :: Board -> Index -> Pos
 ix2Pos b ix = Pos (mod ix $ boardSize b) (div ix $ boardSize b)
 
@@ -53,3 +56,18 @@ pathTo b f from to
           (taxicabDist to)
           (==to)
           from
+
+-- | Converts a path into turtle instructions
+turtlePath :: [Pos] -> [Dir]
+turtlePath (p:ps) = snd $ mapAccumL f p ps
+  where f p1@(Pos x1 y1) p2@(Pos x2 y2)
+          = (,) p2 $ case () of
+                       () | y1 > y2 -> North
+                          | x1 < x2 -> East
+                          | y1 < y2 -> South
+                          | x1 > x2 -> West
+                          | otherwise -> Stay
+
+-- | Converts a starting point and a path into turtle instructions
+turtlePath' :: Pos -> [Pos] -> [Dir]
+turtlePath' p ps = turtlePath $ p:ps

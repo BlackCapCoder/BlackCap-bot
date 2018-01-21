@@ -37,7 +37,7 @@ playLoop bot state = do
 
 beforeGame :: State -> Vindinium ()
 beforeGame st = do
-  liftIO . showGame $ stateViewUrl st
+  -- liftIO . showGame $ stateViewUrl st
   return ()
 
 ----------------

@@ -39,6 +39,5 @@ executable vindinium
                   , process
                   , astar
                   , hashable
-                  , hashable
                   , unordered-containers
                   , containers
