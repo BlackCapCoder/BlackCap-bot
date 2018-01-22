@@ -13,59 +13,6 @@ import Data.Maybe
 import qualified Data.Set as S
 
 
-type Strategy a = State -> Maybe a
-
--- | Tries all strategies in order
-tryAll :: [Strategy a] -> Strategy a
-tryAll [] _ = Nothing
-tryAll (b:bs) st
-  | x@(Just _) <- b st = x
-  | otherwise = tryAll bs st
-
--- | Convert a strategy to a bot - a bot with a plan!
-runStrategy :: Strategy Dir -> Bot -> Bot
-runStrategy strat fallback st
-  | Just d <- strat st = return d
-  | otherwise = fallback st
-
-getState :: Strategy State
-getState = Just
-
----------------------
-
--- | Determines if a tile is passable
-isPassable :: Tile -> Bool
-isPassable = \case FreeTile   -> True
-                   HeroTile _ -> True
-                   _          -> False
-  -- TODO: Heroes are only passable when they can be killed
-  -- TODO: Tiles are only passable when they don't kill you
-
--- | Moves the player towards a given point
-moveTowards :: Pos -> Strategy Dir
-moveTowards p st = do
-  (h:_) <- pathTo' (board st) (isPassable.snd) (myPos st) p
-  return h
-
-goToTile :: ((Pos, Tile) -> Bool) -> Strategy Dir
-goToTile f st = do
-  let ms = findTiles f $ board st
-  (h:_) <- closestPath' (board st) (isPassable.snd) (myPos st) $ map fst ms
-  return h
-
--- | Makes sure not to move within attack range of a non-killable player
-safeGoToTile :: ((Pos, Tile) -> Bool) -> Strategy Dir
-safeGoToTile f st = do
-  let ms = findTiles f $ board st
-  (h:_) <- closestPath' (board st) (\x -> (isPassable.snd) x && f' x) (myPos st) $ map fst ms
-  return h
-  where f' (p, t) = not $ null [ h | h <- offensiveHeroes (game st) p
-                               , heroId h /= myId st
-                               , isKillable (heroLife h) (myHp st) ]
-    -- TODO: A tavern could save a path
-
----------------------
-
 -- | A bot that doesn't do anything
 idle :: Bot
 idle = const $ return Stay
@@ -90,6 +37,63 @@ strat = tryAll
   , goDrinkLowHealth 80
   ]
 
+
+--------------------
+----- Strategy -----
+--------------------
+
+type Strategy a = State -> Maybe a
+
+-- | Tries all strategies in order
+tryAll :: [Strategy a] -> Strategy a
+tryAll [] _ = Nothing
+tryAll (b:bs) st
+  | x@(Just _) <- b st = x
+  | otherwise = tryAll bs st
+
+-- | Convert a strategy to a bot - a bot with a plan!
+runStrategy :: Strategy Dir -> Bot -> Bot
+runStrategy strat fallback st
+  | Just d <- strat st = return d
+  | otherwise = fallback st
+
+getState :: Strategy State
+getState = Just
+
+
+----------------------------
+---- Utility strategies ----
+----------------------------
+
+-- | Moves the player towards a given point
+moveTowards :: Pos -> Strategy Dir
+moveTowards p st = do
+  (h:_) <- pathTo' (board st) (isPassable.snd) (myPos st) p
+  return h
+
+-- | Go to the closest tile matching a description
+goToTile :: ((Pos, Tile) -> Bool) -> Strategy Dir
+goToTile f = goToTile' f (isPassable.snd)
+
+-- | Makes sure not to move within the attack range of a non-killable player
+safeGoToTile :: ((Pos, Tile) -> Bool) -> Strategy Dir
+safeGoToTile f st
+  = goToTile' f (\x@(_,t) -> isPassable t && f' x) st
+  where f' (p, t) = not $ null [ h | h <- offensiveHeroes (game st) p
+                               , heroId h /= myId st
+                               , isKillable (heroLife h) (myHp st) ]
+    -- TODO: A tavern could save a path
+
+-- | Go to the closest tile matching some description
+goToTile'
+  :: ((Pos, Tile) -> Bool) -- ^ Target tiles
+  -> ((Pos, Tile) -> Bool) -- ^ Walkable tiles
+  -> Strategy Dir
+goToTile' f1 f2 st = do
+  (h:_) <- closestPath' (board st) f2 (myPos st) . map fst . findTiles f1 $ board st
+  return h
+
+
 -- | Get to the nearest tavern as quickly as possible and get a drink!
 goDrink :: Strategy Dir
 goDrink = safeGoToTile ((== TavernTile).snd)
@@ -101,6 +105,11 @@ goMine f = safeGoToTile (\(_,t) -> isTileMine t && f t)
 -- | Go to the closest hero satisfying a condition, that isn't yourself
 goHero :: (Tile -> Bool) -> Strategy Dir
 goHero f st = safeGoToTile (\(_,t) -> isTileHero t && (\(HeroTile i) -> i /= myId st) t && f t) st
+
+
+---------------------
+---- Strategies -----
+---------------------
 
 -- | Go to the nearest tavern and get a drink if health is below some limit
 goDrinkLowHealth :: Integer -> Strategy Dir

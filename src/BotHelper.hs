@@ -199,6 +199,13 @@ neighboringHeroes g = heroesFromTiles g . neighbors (gameBoard g)
 offensiveHeroes :: Game -> Pos -> [Hero]
 offensiveHeroes g = heroesFromTiles g . attackRange (gameBoard g)
 
+-- | Determines if a tile is passable
+isPassable :: Tile -> Bool
+isPassable = \case FreeTile   -> True
+                   HeroTile _ -> True
+                   _          -> False
+  -- TODO: Considers heroes to be non-solid
+
 ------------------
 
 
