@@ -79,9 +79,9 @@ goToTile f = goToTile' f (isPassable.snd)
 safeGoToTile :: ((Pos, Tile) -> Bool) -> Strategy Dir
 safeGoToTile f st
   = goToTile' f (\x@(_,t) -> isPassable t && f' x) st
-  where f' (p, t) = not $ null [ h | h <- offensiveHeroes (game st) p
-                               , heroId h /= myId st
-                               , isKillable (heroLife h) (myHp st) ]
+  where f' (p, t) = null [ h | h <- offensiveHeroes (game st) p
+                         , heroId h /= myId st
+                         , isKillable (heroLife h) (myHp st) ]
     -- TODO: A tavern could save a path
 
 -- | Go to the closest tile matching some description
