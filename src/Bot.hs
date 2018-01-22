@@ -59,28 +59,10 @@ safeGoToTile f st = do
   let ms = findTiles f $ board st
   (h:_) <- closestPath' (board st) (\x -> (isPassable.snd) x && f' x) (myPos st) $ map fst ms
   return h
-  where f' (p, t) | ts  <- filter isTileHero $ snd <$> attackRange (board st) p
-                  , ts' <- filter (/= myId st) $ heroTileId <$> ts
-                  , hs  <- fromJust . heroById (game st) <$> ts'
-                  = not $ any (flip isKillable (myHp st) . heroLife) hs
-    -- TODO: A tavern might save a path
-
-
--- | Get neighboring heroes
-neighboringHeros :: (Hero -> Bool) -> Strategy [Hero]
-neighboringHeros f st = do
-  ts <- pure . filter isTileHero . map snd . neighbors (board st) $ myPos st
-  let hs = filter f . catMaybes $ heroById (game st) . heroTileId <$> ts
-  guard . not $ null hs
-  return hs
-
--- | Get heroes in attack range
-offensiveHeros :: (Hero -> Bool) -> Strategy [Hero]
-offensiveHeros f st = do
-  ts <- pure . filter isTileHero . map snd . attackRange (board st) $ myPos st
-  let hs = filter f . catMaybes $ heroById (game st) . heroTileId <$> ts
-  guard . not $ null hs
-  return hs
+  where f' (p, t) = not $ null [ h | h <- offensiveHeroes (game st) p
+                               , heroId h /= myId st
+                               , isKillable (heroLife h) (myHp st) ]
+    -- TODO: A tavern could save a path
 
 ---------------------
 
@@ -97,7 +79,8 @@ bot st = do
 -- | Main strategy
 strat :: Strategy Dir
 strat = tryAll
-  [ selfDefence
+  [ murderWeak
+  , selfDefence
   , profitDefence
   , goDrinkLowHealth attackDamage
   -- , goDrinkLowHealthUnsafe attackDamage
@@ -145,16 +128,22 @@ stealMine st = flip goMine st
              $ \case MineTile (Just i) -> i /= myId st
                      _                 -> True
 
+-- | Execute weak players in attack range
+murderWeak :: Strategy Dir
+murderWeak st = do
+  (h:_) <- pure [ x | x <- offensiveHeroes (game st) (myPos st)
+                , heroLife x <= attackDamage ]
+  moveTowards (heroPos h) st
+
 -- | Attack killable players within attack range
 --   that can also kill me, unless they are camping
---   OR, if they are immediately killable
 selfDefence :: Strategy Dir
 selfDefence st = do
-  [h] <- offensiveHeros (\h -> heroLife h <= attackDamage ||
-                             ( isKillable (myHp st) (heroLife h)
-                             && isKillable (heroLife h) (myHp st)
-                             && not (isCamping (board st) (me st) h) )
-                        ) st
+  (h:_) <- pure [ x | x <- offensiveHeroes (game st) (myPos st)
+                , isKillable (myHp st   ) (heroLife x)
+                , isKillable (heroLife x) (myHp st   )
+                , not $ isCamping (board st) (me st) x
+                ]
   moveTowards (heroPos h) st
   -- TODO: Handle multiple case
 
@@ -162,16 +151,18 @@ selfDefence st = do
 --   if it is profitable, unless they are near a tavern
 profitDefence :: Strategy Dir
 profitDefence st = do
-  [h] <- offensiveHeros (\h -> isKillable (myHp st) (heroLife h)
-                            && heroMineCount h > 0
-                            && not (isNearTavern (board st) (heroPos h))
-                        ) st
+  (h:_) <- pure [ x | x <- offensiveHeroes (game st) (myPos st)
+                , isKillable (myHp st) (heroLife x)
+                , heroMineCount x > 0
+                , not $ isNearTavern (board st) (heroPos x)
+                ]
   moveTowards (heroPos h) st
+  -- TODO: Handle multiple case
 
 -- | Flee from other players attack range
 flee :: Strategy Dir
 flee st = do
-  hs <- map heroPos <$> offensiveHeros (const True) st
+  let hs = heroPos <$> offensiveHeroes (game st) (myPos st)
   guard . not $ null hs
   let as = S.fromList $ hs ++ concat (map fst . attackRange (board st) <$> hs)
   goToTile (\(p,t) -> isPassable t && not (p `S.member` as)) st

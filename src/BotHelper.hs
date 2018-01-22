@@ -187,6 +187,18 @@ isNearTavern b p = any ((==TavernTile).snd) (neighbors b p)
 isCamping :: Board -> Hero -> Hero -> Bool
 isCamping b x h = isNearSpawn x h || isNearTavern b (heroPos h)
 
+-- | Get the heroes associated with some tiles
+heroesFromTiles :: Game -> [(Pos, Tile)] -> [Hero]
+heroesFromTiles g ts = [h | (_,HeroTile i)<-ts, Just h<-[heroById g i]]
+
+-- | Get neighboring heroes
+neighboringHeroes :: Game -> Pos -> [Hero]
+neighboringHeroes g = heroesFromTiles g . neighbors (gameBoard g)
+
+-- | Get heroes in attack range
+offensiveHeroes :: Game -> Pos -> [Hero]
+offensiveHeroes g = heroesFromTiles g . attackRange (gameBoard g)
+
 ------------------
 
 
